@@ -1,0 +1,42 @@
+# kimlab
+packages:
+  mpfr:
+    version: [4.1.0]
+  boost:
+    version: [1.77.0]
+  gmp:
+    version: [6.2.1]
+  mpich:
+    version: [3.4.2]  
+  all:
+    compiler: [gcc@11.2.0]
+    variants: build_type=Release +mpi
+    providers:
+      mpi: [mpich]
+      blas: [openblas]
+      lapack: [openblas]
+      gl: [osmesa+opengl]
+      glx: [osmesa+glx]
+      awk: [gawk]
+      blas: [openblas]
+      elf: [elfutils]
+      fftw-api: [fftw]
+      gl: [osmesa+opengl]
+      glx: [osmesa+glx]
+      golang: [gcc]
+      iconv: [libiconv]
+      java: [openjdk]
+      jpeg: [libjpeg-turbo]
+      lapack: [openblas]
+      pil: [py-pillow]
+      pkgconfig: [pkg-config]
+      rpc: [libtirpc]
+      scalapack: [netlib-scalapack]
+      sycl: [hipsycl]
+      szip: [libszip]
+      unwind: [libunwind]
+      yacc: [bison]
+      uuid: [libuuid]
+    permissions:
+      read: world
+      write: user

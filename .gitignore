@@ -1,0 +1,6 @@
+spack/
+./.*
+.DS_Store
+._*
+.deps/
+

@@ -1,0 +1,7 @@
+modules:
+  default:
+    roots:
+      #lmod: /home/groups/s-ees/share/spack_sw/cees/spack/share/spack/lmod_zen2-cfg
+      #tcl: /home/groups/s-ees/share/spack_sw/cees/spack/share/spack/modules_zen2-cfg
+      lmod: $spack/share/spack/lmod_zen2-cfg
+      tcl: $spack/share/spack/modules_zen2-cfg

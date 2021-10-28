@@ -1,0 +1,18 @@
+# oneapi@2021.3.0
+packages:
+  meson:
+    version: [0.59.0]
+  glib:
+    version: [2.68.3]
+  openmpi:
+    # this appears to just not build under intel@2021.3.0
+    variants: +pmi +legacylaunchers schedulers=slurm fabrics=ucx,ofi
+    version: [4.1.1]
+  findutils:
+    version: [4.7.0]
+  m4:
+     version: [1.4.17]
+  intel-oneapi-mpi:
+    version: [2021.3.0]
+  intel-oneapi-compilers:
+    version: [2021.3.0]

@@ -1,0 +1,248 @@
+#!/bin/bash
+#SBATCH --job-name=SpackBuilds
+#SBATCH --output=SpackBuilds_%A_%a.out
+#SBATCH --error=SpackBuilds_%A_%a.out
+#SBATCH --time=1-00:00:00
+#SBATCH --ntasks=1 # how to scale the following to multiple tasks?
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=4G
+#SBATCH -p serc,normal
+##SBATCH -C CPU_MNF:INTEL
+#
+# usage:
+# ./insttall.sh {arch} {npes} {spack_env}
+# TODO: for Intel compilers, we might actually need a more current GCC compiler. Ugh! So we could try a spack load, or maybe
+#  we just need to build in multiple steps (for each compiler)
+#
+# NOTE: At this time, I think this will not parallelize across nodes, but
+#   we need to look into this more carefully.
+#
+#ARCH="x86_64" #this is the main target, select either x86_64, zen2, or skylake_avx512
+ARCH=$(basename $(pwd))
+if [[ ! -z $1 ]]; then
+  ARCH=$1
+fi
+if [[ ! -z ${SLURM_CPUS_PER_TASK} ]]; then
+	NPES=${SLURM_CPUS_PER_TASK}
+fi
+#
+NPES=8
+if [[ ! -z $2 ]]; then
+    NPES=$2
+fi
+SPACK_ENV_NAME=${ARCH}
+if [[ ! -z $3 ]]; then
+    SPACK_ENV_NAME=$3
+fi
+#
+if [[ -z ${SPACK_ENV_NAME} ]]; then
+    echo "*** ERROR: SPACK_ENV_NAME must be set for this install script."
+    exit 1
+fi
+#
+NUKE_ENV=1
+# NOTE: might be good to define spack or SPACK=`pwd`/spack , then local paths, so we can write modules.yaml entries like $spack/share/spack/${SPACK_ENV_NAME}
+LMOD_PATH="`pwd`/spack/share/spack/lmod_${SPACK_ENV_NAME}"
+TCL_PATH="`pwd`/spack/share/spack/modules_${SPACK_ENV_NAME}"
+#
+# append module names with this. It is in the modules.yaml file, but we don't
+#  know how to get it from there, gracefully, yet.
+LMOD_SUFFIX="yoda"
+# This is the general install script for SERC on the Sherlock HPC system @ Stanford.
+# 
+#set -x #debug
+#
+#global variables
+# NOTE: gcc@10.1.0 might be a little buggy and 11.2 is now the 'recommended' version,
+# so let's give it a go!
+#GCC_VER="10.1.0"
+GCC_VER="11.2.0"
+INTEL_VER="2021.2.0"
+ONEAPI_VER="2021.2.0"
+#SPACK_ENV_NAME="intel_202102"
+#
+CORECOUNT=${NPES} #main core count for compiling jobs
+#
+echo "*** Building for ARCH=${ARCH}; CPUs=${CORECOUNT}, SPACK_ENV_NAME=${SPACK_ENV_NAME}"
+#exit 1
+#
+#
+# if it does not exist, clone the spack repo into this current directory
+if [[ ! -d "spack" ]]; then
+	git clone https://github.com/spack/spack.git
+fi
+#
+#source the spack environment from relative path
+source spack/share/spack/setup-env.sh
+#
+#
+# remove compiler config?:
+# it may be necessary to clean this out, but see below; what we really want to do is use the compiler find --scope=site option
+#rm ${HOME}/.spack/linux/compilers.yaml
+module load icc/ ifort/
+spack compiler find --scope=site
+module unload icc
+module unload ifort
+
+#install compilers
+echo "*** Installing compilers:"
+#fix was added due to zen2 not having optimizations w/ 4.8.5 compiler
+#spack --config-scope=config_cees/ install -j${CORECOUNT} gcc@${GCC_VER}%gcc@4.8.5 target=x86_64
+#spack --config-scope=config_cees/ install -j${CORECOUNT} intel-oneapi-compilers@${ONEAPI_VER}%gcc@4.8.5 target=x86_64
+
+#now add the compilers
+# NOTE: I think the compilers just need to be handled separately...
+# GCC:
+# use??  --config-scope=config_cees/
+spack compiler find --scope=site `spack location --install-dir gcc@${GCC_VER}`
+#spack compiler find --scope=site `spack location --install-dir gcc@${GCC_VER}`/bin
+#
+# ICX:
+spack compiler find --scope=site `spack location --install-dir  intel-oneapi-compilers@${ONEAPI_VER}`/compiler/${ONEAPI_VER}/linux/bin
+#
+# ICC, etc.:
+# NOTE: Intel compiler needs to know where gcc et al. are, and in some cases, we need a newer version. To use the
+#  preferred gcc, there are two (good) options: 1) set the modules = [] value in compilers.yaml (or equivalently
+#  in the {environment}/spack.yaml file), or to set flags:{cflags, cxxflags:, cppflags: values}. It would be nice to
+#  be able to do this from the command line, but I'm not seeing it.
+#  https://spack.readthedocs.io/en/latest/getting_started.html
+#
+# I wish this worked, but it does not:
+#spack compiler add --scope=site `spack location --install-dir  intel-oneapi-compilers@${INTEL_VER}`/compiler/${INTEL_VER}/linux/bin/intel64 --cflags="-gcc-name `spack location --install-dir gcc@${GCC_VER}`/bin/gcc" --cxxflags="-gxx-name `spack location --install-dir gcc@${GCC_VER}`/bin/g++" --fflags="-gcc-name `spack location --install-dir gcc@${GCC_VER}`/bin/gcc"
+# icc
+spack compiler find --scope=site `spack location --install-dir  intel-oneapi-compilers@${INTEL_VER}`/compiler/${INTEL_VER}/linux/bin/intel64
+
+#exit
+
+# are we using an environment?
+if [[ ${NUKE_ENV} != 0i ]]; then 
+  if [[ -d config_env_${SPACK_ENV_NAME} ]]; then 
+    spack env remove -y ${SPACK_ENV_NAME};
+  fi
+fi
+
+# NOTE create this even if ${SPACK_ENV_NAME} is empty.
+if [[ ! -d config_env_${SPACK_ENV_NAME} ]]; then mkdir config_env_${SPACK_ENV_NAME}; fi
+if [[ ! -z ${SPACK_ENV_NAME} ]]; then
+    if [[ ! -d spack/var/spack/environments/${SPACK_ENV_NAME} ]]; then
+      spack env create ${SPACK_ENV_NAME}
+    fi
+    spack  --config-scope=config_cees/ env activate ${SPACK_ENV_NAME}
+    #
+
+cat > config_env_${SPACK_ENV_NAME}/modules.yaml <<EOF
+modules:
+  default:
+    roots:
+      #lmod: ${LMOD_PATH}
+      #tcl: ${TCL_PATH}
+      lmod: \$spack/share/spack/lmod_${SPACK_ENV_NAME}
+      tcl: \$spack/share/spack/modules_${SPACK_ENV_NAME}
+EOF
+    #
+    if [[ ! $?=0 ]]; then
+        echo "Error activating Spack environment: ${SPACK_ENV_NAME}"
+        exit 1
+    fi
+fi
+    
+echo "Setup complete get to adding and installing .."
+#exit 1
+
+echo "Compilers: "
+spack compilers
+#exit 1
+
+#
+#############SOFTWARE INSTALL########################
+#
+# TODO: we need to install and/or  configure our compilers here I think.
+#
+# compiler packages (separating just for organization purposes)
+spack --config-scope=config_cees/ add gcc intel-oneapi-compilers
+spack --config-scope=config_cees/ add proj swig geos maven intel-oneapi-tbb intel-oneapi-mkl intel-tbb
+spack --config-scope=config_cees/ add hdf5 netcdf-c netcdf-fortran netcdf-cxx4 cdo parallel-netcdf petsc fftw parallelio cgal
+#
+# spack load gcc@${GCC_VER}
+echo "*** Execute install for gcc:"
+spack --config-scope=config_cees --config-scope=cfg_gcc@${GCC_VER} install
+
+echo "*** Execute install for Intel:"
+spack --config-scope=config_cees --config-scope=cfg_intel@${INTEL_VER} install
+
+
+#################END_OF_SOFTWARE_INSTALLS####################################
+
+#have spack regenerate module files:
+
+spack --config-scope=config_cees/  --config-scope=config_env_${SPACK_ENV_NAME}/ module lmod refresh --delete-tree -y
+
+#
+# now, write wrapper modules for intel/ and oneapi/
+# unload gcc (probably not strictly necessary) and load the oneapi compilers so we can use
+#  mod`which icc`, etc. to get compilers... or don't? depend on loading intel-oneapi-compilers to make that work?
+spack unload gcc/
+spack load intel-oneapi-compilers
+#
+INTEL_MODULE_PATH=${LMOD_PATH}/linux-centos7-x86_64/Core/intel--${LMOD_SUFFIX}/${INTEL_VER}.lua
+ONEAPI_MODULE_PATH=${LMOD_PATH}/linux-centos7-x86_64/Core/oneapi--${LMOD_SUFFIX}/${ONEAPI_VER}.lua
+
+for pth in `dirname ${INTEL_MODULE_PATH}` `dirname ${ONEAPI_MODULE_PATH}`
+do
+    if [[ ! -d ${pth} ]]; then
+        mkdir -p ${pth}
+    fi
+done
+#
+cat > ${INTEL_MODULE_PATH} <<EOF
+-- -*- lua
+whatis([[Name : intel ]])
+whatis([[Version : ${INTEL_VER}]])
+whatis([[Target: x86_64]])
+whatis([[Short description : Wrapper module script to load intel-oneapi-compilers for use with classic, intel/ compilers]])
+help([[Wrapper modle for intel-oneapi intel/ compilers ]])
+family("compiler")
+--
+depends_on("intel-oneapi-compilers-${LMOD_SUFFIX}/${INTEL_VER}")
+--
+-- NOTE: how do we script the module naming scheme?
+prepend_path("MODULEPATH", "${LMOD_PATH}/linux-centos7-x86_64/intel/${INTEL_VER}")
+--
+-- TODO: might need/benefit from full paths?
+-- setenv("CC", "`which icc`")
+setenv("CC", "icc")
+setenv("CXX", "icpc")
+setenv("FC", "ifort")
+setenv("F77", "ifort")
+setenv("F90", "ifort")
+--
+EOF
+#
+cat > ${ONEAPI_MODULE_PATH} <<EOF
+-- -*- lua
+whatis([[Name : oneapi ]])
+whatis([[Version : ${ONEAPI_VER}]])
+whatis([[Target: x86_64]])
+whatis([[Short description : Wrapper module script to load intel-oneapi-compilers for use with beta LLVM, oneapi/ compilers]])
+help([[Wrapper modle for intel-oneapi oneapi/ (LLVM based) compilers ]])
+family("compiler")
+--
+depends_on("intel-oneapi-compilers-${LMOD_SUFFIX}/${ONEAPI_VER}")
+--
+-- NOTE: how do we script the module naming scheme?
+prepend_path("MODULEPATH", "${LMOD_PATH}/linux-centos7-x86_64/oneapi/${ONEAPI_VER}")
+--
+-- TODO: might need/benefit from full paths?
+-- setenv("CC", "`which icx`")
+setenv("CC", "icx")
+setenv("CXX", "icpx")
+setenv("FC", "ifx")
+setenv("F77", "ifx")
+setenv("F90", "ifx")
+--
+EOF
+
+
+echo "finised install_env.sh script. exiting..."
+exit 0
+

@@ -1,0 +1,6 @@
+packages:
+  all:
+    compiler::[intel@19.0.0.117]
+    providers:
+      mpi:: [mpich, openmpi]
+

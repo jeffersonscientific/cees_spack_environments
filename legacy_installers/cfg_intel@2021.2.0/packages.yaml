@@ -1,0 +1,6 @@
+packages:
+  all:
+    compiler::[intel@21.2.0, oneapi@2021.2.0]
+    providers:
+      mpi:: [mpich, intel-oneapi-mpi]
+
