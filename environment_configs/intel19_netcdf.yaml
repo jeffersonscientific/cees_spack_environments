@@ -1,0 +1,114 @@
+# This is a Spack Environment file.
+#
+# It describes a set of packages to be installed, along with
+# configuration settings.
+spack:
+  definitions:
+  - compilers_core: [gcc@4.8.5]
+  - compilers: [intel@19.0.0.117]
+  - mpis: [mpich]
+  - packages_serial: [tar]
+  - packages_mpi: [netcdf-c, netcdf-fortran, netcdf-cxx, parallel-netcdf]
+#  - packages_serial: [proj, swig, geos, maven, intel-oneapi-tbb, intel-oneapi-mkl,
+#      ncurses, libdwarf, tar, ucx, cuda, numactl, font-util]
+
+  specs:
+  
+  # we still need to "install" external compilers:
+  - matrix:
+    - [$compilers]
+    - [$%compilers_core]
+  #
+  - matrix:
+    - [$packages_serial, $mpis]
+    - [$%compilers]
+  - matrix:
+    - [$packages_mpi]
+    - [$^mpis]
+    - [$%compilers]
+  - intel@19.0.0.117
+  #- mpich@3.3.1
+  view: true
+  packages:
+    intel:
+      externals:
+      - spec: intel@19.0.0.117
+        modules:
+        - devel
+        - icc/2019
+        - ifort/2019
+      buildable: false
+      compiler: [gcc@4.8.5]
+    mpich:
+      version: [3.3.1, 3.4.2]
+    all:
+      compiler: [intel@19.0.0.117]
+      variants: build_type=Release +mpi
+      providers:
+        mpi: [mpich]
+        blas: [openblas]
+        lapack: [openblas]
+        gl: [osmesa+opengl]
+        glx: [osmesa+glx]
+        awk: [gawk]
+        elf: [elfutils]
+        fftw-api: [fftw]
+        golang: [gcc]
+        iconv: [libiconv]
+        java: [openjdk]
+        jpeg: [libjpeg-turbo]
+        pil: [py-pillow]
+        pkgconfig: [pkg-config]
+        rpc: [libtirpc]
+        scalapack: [netlib-scalapack]
+        sycl: [hipsycl]
+        szip: [libszip]
+        unwind: [libunwind]
+        yacc: [bison]
+        uuid: [libuuid]
+      permissions:
+        read: world
+        write: user
+  modules:
+    default:
+      roots:
+        lmod: $spack/share/spack/lmod_intel19
+        tcl: $spack/share/spack/modules_intel19
+      enable:
+      - lmod
+      lmod:
+        core_compilers:
+        - gcc@4.8.5
+        hierarchy:
+        - mpi
+        - compiler
+        'hash_length:': 5
+        projections:
+          all: '{name}-i19/{version}'
+          ^mpi: '{name}-i19/{^mpi.name}-{version}'
+    prefix_inspections:
+      bin:
+      - PATH
+      lib:
+      - LIBRARY_PATH
+      - LD_LIBRARY_PATH
+      lib/pkgconfig:
+      - PKG_CONFIG_PATH
+      share/pkgconfig:
+      - PKG_CONFIG_PATH
+      include:
+      - CPATH
+  #
+  config:
+    install_missing_compilers: true
+    checksum: true
+    deprecated: false
+    dirty: false
+    ccache: false
+    concretizer: original
+    shared_linking: rpath
+    build_stage:
+    - /scratch/${user}/spack_stage
+    - $tempdir/${user}/spack-stage
+    - ~/.spack/stage
+
