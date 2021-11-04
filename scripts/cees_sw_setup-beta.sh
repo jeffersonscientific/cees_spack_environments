@@ -64,20 +64,33 @@ else
 fi
 #SPACK_MOD_PATH="${BASE_DIST_DIR}/spack/share/spack/lmod_${SPACK_ENV_NAME}/linux-centos7-x86_64/Core"
 SPACK_MOD_PATH="${BASE_DIST_DIR}/spack/share/spack/lmod_${SPACK_ARCH}_${SPACK_ENV_NAME}/linux-centos7-x86_64/Core"
-CEES_MOD_DEPS_ARCH_PATH=${CEES_MOD_DEPS}_${SPACK_ARCH}
+CEES_MOD_DEPS_ARCH_PATH=${CEES_MOD_DEPS_PATH}_${SPACK_ARCH}
 CEES_MOD_ARCH_PATH=${CEES_MOD_PATH}_${SPACK_ARCH}
 
-# finally export the module environment 
+# finally export the module environment
+#
+# module unuse any ${SPAC_ARCH} dependendent paths. Particularly for interactive sessions,
+#  these can get set and propagated from a parent session (eg, SH03 compute architecture,
+#  SH02 login).
+# TODO: arch, environment names need to be cleaned up. I don't think it is easy to do a double-list in this version
+#  of bash (easy in zshell...). For now, let's jst hack it...
+for ARCH in zen2 skylake x86_64
+do
+  module unuse ${BASE_DIST_DIR}/spack/share/spack/lmod_${ARCH}_${ARCH}-beta/linux-centos7-x86_64/Core
+  module unuse ${CEES_MOD_DEPS}_${ARCH}
+  module unuse ${CEES_MOD_PATH}_${ARCH}
+done
 
 #export MODULEPATH="${SPACK_MOD_PATH}:${SERC_MOD_PATH}:${SHER_MOD_PATH}"
 #
 #echo "** Enabling SpackCore: ${SPACK_MOD_PATH}"
 #
-module use ${SPACK_MOD_PATH}
-#
+# ARCH independent:
 module use ${CEES_MOD_PATH}
-module use ${CEES_MOD_ARCH_PATH}
-#
 module use ${CEES_MOD_DEPS_PATH}
+#
+# ARCH dependent:
+module use ${SPACK_MOD_PATH}
+module use ${CEES_MOD_ARCH_PATH}
 module use ${CEES_MOD_DEPS_ARCH_PATH}
 #
