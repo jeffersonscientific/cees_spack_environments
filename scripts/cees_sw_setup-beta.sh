@@ -2,27 +2,60 @@
 #
 # This script sets up the environment
 #
-# yoder 22 sept 2021:
-# making a few changes:
-# 1) instead of explicitly setting the modulefiles, we will leave alone the standard sherlock environment(s) and let users
-#    handle that on their own.
-# 2) use modulle use {path} to set modules, instead of explicitly modifying the path.
+# Summary:
+#  - Take as input or detect architecture
+#  - Construct CEES module paths
+#  - module unuse {every_version_of_ARCH_dependent_paths}
+#  - module use {relevant paths}
 #
+# if we don't remove old paths, we can retain invalid architecture pahts from
+unset SPACK_ARCH
+unset SPACK_ENV_NAME
 #
+# Start with some inputs:
+#echo "*** INPUTS: $1 ** $2 **"
+if [[ ! -z $1 ]]; then
+  SPACK_ARCH=$1
+fi
+#if [[ ! -z $2 ]]; then
+#  SPACK_ENV_NAME=$2
+#fi
 #
-#set -x #debug
+FORCE_ARCH=0
+DO_RESET=0
+while getopts ":a:e:fr" opt; do
+  case ${opt} in
+    a )
+      SPACK_ARCH=${OPTARG}
+      #echo "setting SPACK_ARCH:  ${SPACK_ARCH}"
+      ;;
+    e )
+      SPACK_ENV_NAME=${OPTARG}
+      ;;
+    f )
+      FORCE_ARCH=1
+      ;;
+    r )
+      DO_RESET=1
+      ;;
+    \? )
+      # Do nothing...
+      ;;
+  esac
+done
+shift $((OPTIND-1))
 
-#global variables
+#unset $1
+#unset $2
 
+#echo "** ** ARCH, ENV: ${SPACK_ARCH}, ${SPACK_ENV_NAME}"
 #directories
-# TODO: rename this spack_beta or something...
 BASE_DIST_DIR="/home/groups/s-ees/share/cees/spack_cees"
 #
-#sherlock modules
-#SHER_MOD_PATH="/share/software/modules/devel:/share/software/modules/math:/share/software/modules/categories"
+# standard sherlock modules
+SHER_MOD_PATH="/share/software/modules/devel:/share/software/modules/math:/share/software/modules/categories"
 
 #serc internal modules
-#SERC_MOD_PATH_OAK="/oak/stanford/schools/ees/share/cees/modules/modulefiles"
 #
 # CEES developed modules (not Spack built):
 # NOTE: The "generic" path is intended for packages that are *only* build without machine optimization, so there is only
@@ -41,42 +74,74 @@ CEES_MOD_DEPS_PATH="/home/groups/s-ees/share/cees/modules/moduledeps"
 #
 #####
 #
-CODE_NAME=`/usr/local/sbin/cpu_codename -c` #the output of the cpu_codename command
+# Dict.. of ARCH:ENV values:
+declare -A architectures
+architectures["RME"]="zen2"
+architectures["zen2"]="zen2"
+architectures["skylake"]="skylake"
+architectures["skylake-avx512"]="skylake"
+architectures["SKX"]="skylake"
+architectures["x86_64"]="x86_64"
+architectures["x86_64_v2"]="x86_64"
+architectures["x86_64_v3"]="x86_64"
+architectures["x86_64_v4"]="x86_64"
+architectures["haswell"]="x86_64"
+
+declare -A DEFAULT_ARCH_ENV
+DEFAULT_ARCH_ENV["zen2"]="zen2-beta"
+DEFAULT_ARCH_ENV["skylake"]="skylake-beta"
+DEFAULT_ARCH_ENV["x86_64"]="x86_64-beta"
 #
-#conditionals
-if [[ ${CODE_NAME} == "RME" ]]; then
-  SPACK_ARCH="zen2"
-  SPACK_ENV_NAME="zen2-beta"
-  #
-elif  [[ ${CODE_NAME} == "SKX" ]]; then
-  SPACK_ARCH="skylake"
-  SPACK_ENV_NAME="skylake-beta"
-  #
-else
-  # NOTE: this might actually be x86_64_v3, or in some cases haswell. It is not clear, just yet, how to best build the
-  #   Arch-independent stack. GCC likes x86_64_v3, and appaers to possibly build more packages with it?; intel cannot
-  #   build _v3 and bumps down to x86_64. When I set target=x86_64, a bunch of the Core bits get build as haswell
-  #   (but they get build correctly in zen2 and skylake...). So it's a work in progress.
-  #   For now, our intention is to build only one x86_64{?} environment. I think it is ok if it is mixed in its actual
-  #   HW targeting (haswell, x86_64, x86_64_v3, or so) and we'll call it all x86_64.
-  SPACK_ARCH="x86_64"
-  SPACK_ENV_NAME="x86_64-beta"
+#CODE_NAME=`/usr/local/sbin/cpu_codename -c` #the output of the cpu_codename command
+#
+if [[ -z ${SPACK_ARCH} ]]; then
+  SPACK_ARCH=`/usr/local/sbin/cpu_codename -c`
 fi
+
+if [[ ${FORCE_ARCH} < 1 ]]; then
+  if [[ ! -z ${architectures[${SPACK_ARCH}]} ]]; then
+    SPACK_ARCH=${architectures[${SPACK_ARCH}]}
+  else
+    echo "*** Setting DEFAULT ARCH "
+    SPACK_ARCH="x86_64"
+  fi
+fi
+#
+##
+# has SPACK_ENV_NAME been set (by input prams)?
+if [[ -z ${SPACK_ENV_NAME} ]]; then
+  if [[ -z ${DEFAULT_ARCH_ENV[${SPACK_ARCH}]} ]]; then
+    SPACK_ARCH="x86_64"
+  fi
+  SPACK_ENV_NAME=${DEFAULT_ARCH_ENV[${SPACK_ARCH}]}
+fi
+# Now, we should have SPACK_ARCH and SPACK_ENV_NAME. They might not be valid, if passed as prams, but
+#   should be valid if *not* passed. If one invalid input, we should fail to x86_64.
+#
 #SPACK_MOD_PATH="${BASE_DIST_DIR}/spack/share/spack/lmod_${SPACK_ENV_NAME}/linux-centos7-x86_64/Core"
 SPACK_MOD_PATH="${BASE_DIST_DIR}/spack/share/spack/lmod_${SPACK_ARCH}_${SPACK_ENV_NAME}/linux-centos7-x86_64/Core"
 CEES_MOD_DEPS_ARCH_PATH=${CEES_MOD_DEPS_PATH}_${SPACK_ARCH}
 CEES_MOD_ARCH_PATH=${CEES_MOD_PATH}_${SPACK_ARCH}
 
 # finally export the module environment
+echo "ARCH: ${SPACK_ARCH}"
+echo "ENV:  ${SPACK_ENV_NAME}"
 #
+if [[ ${DO_RESET} > 0 ]]; then
+  export MODULEPATH=${SHER_MOD_PATH}
+fi
 # module unuse any ${SPAC_ARCH} dependendent paths. Particularly for interactive sessions,
 #  these can get set and propagated from a parent session (eg, SH03 compute architecture,
 #  SH02 login).
-# TODO: arch, environment names need to be cleaned up. I don't think it is easy to do a double-list in this version
-#  of bash (easy in zshell...). For now, let's jst hack it...
-for ARCH in zen2 skylake x86_64
+#
+#for ARCH in zen2 skylake x86_64
+for ARCH in ${!DEFAULT_ARCH_ENV[@]}
 do
-  module unuse ${BASE_DIST_DIR}/spack/share/spack/lmod_${ARCH}_${ARCH}-beta/linux-centos7-x86_64/Core
+  #env=${ARCH}-beta
+  env=${DEFAULT_ARCH_ENV[${ARCH}]}
+  echo "** DEBUG: Unsetting ARCH=${ARCH}, ENV=${env}"
+  #
+  module unuse ${BASE_DIST_DIR}/spack/share/spack/lmod_${ARCH}_${SPACK_ENV_NAME}/linux-centos7-x86_64/Core
   module unuse ${CEES_MOD_DEPS}_${ARCH}
   module unuse ${CEES_MOD_PATH}_${ARCH}
 done
