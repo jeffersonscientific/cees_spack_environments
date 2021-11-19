@@ -145,6 +145,8 @@ do
   module unuse ${CEES_MOD_DEPS}_${ARCH}
   module unuse ${CEES_MOD_PATH}_${ARCH}
 done
+#
+echo "** DEBUG: Setting ARCH=${SPACK_ARCH}, ENV=${SPACK_ENV_NAME}"
 
 #export MODULEPATH="${SPACK_MOD_PATH}:${SERC_MOD_PATH}:${SHER_MOD_PATH}"
 #

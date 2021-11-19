@@ -221,7 +221,7 @@ spack:
       roots:
         lmod: $spack/share/spack/lmod_skylake_skylake-beta
         tcl: $spack/share/spack/modules_skylake_skylake-beta
-      enable::
+      enable:
       - lmod
       lmod:
         core_compilers:
@@ -229,22 +229,28 @@ spack:
         hierarchy:
         - mpi
         - compiler
-        'hash_length:': 5
+        hash_length: 5
         projections:
           all: '{name}-cees-beta/{version}'
           ^mpi: '{name}-cees-beta/{^mpi.name}-{version}'
+        all:
+          environment:
+            set:
+             '${PACKAGE}_ROOT': '${PREFIX}'
     prefix_inspections:
       bin:
       - PATH
       lib:
       - LIBRARY_PATH
       - LD_LIBRARY_PATH
+      - ${PACKAGE}_LIB
       lib/pkgconfig:
       - PKG_CONFIG_PATH
       share/pkgconfig:
       - PKG_CONFIG_PATH
       include:
       - CPATH
+      - ${PACKAGE}_INC
   #
   config:
     install_missing_compilers: true
