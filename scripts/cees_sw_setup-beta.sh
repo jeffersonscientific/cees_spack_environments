@@ -139,14 +139,14 @@ for ARCH in ${!DEFAULT_ARCH_ENV[@]}
 do
   #env=${ARCH}-beta
   env=${DEFAULT_ARCH_ENV[${ARCH}]}
-  echo "** DEBUG: Unsetting ARCH=${ARCH}, ENV=${env}"
+  echo "** CEES Setup: Unsetting ARCH=${ARCH}, ENV=${env}"
   #
   module unuse ${BASE_DIST_DIR}/spack/share/spack/lmod_${ARCH}_${SPACK_ENV_NAME}/linux-centos7-x86_64/Core
   module unuse ${CEES_MOD_DEPS}_${ARCH}
   module unuse ${CEES_MOD_PATH}_${ARCH}
 done
 #
-echo "** DEBUG: Setting ARCH=${SPACK_ARCH}, ENV=${SPACK_ENV_NAME}"
+echo "** CEES Setup: Setting ARCH=${SPACK_ARCH}, ENV=${SPACK_ENV_NAME}"
 
 #export MODULEPATH="${SPACK_MOD_PATH}:${SERC_MOD_PATH}:${SHER_MOD_PATH}"
 #
