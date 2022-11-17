@@ -9,6 +9,15 @@
 #SBATCH -p serc,normal
 ##SBATCH -C CPU_MNF:INTEL
 #
+# NOTE: 
+# Adding notes and comments to install script(s) to clarify from whence they came, their intended purpose, strategy for success, and status.
+# Generally, I think we are leaving behind most of these older `cees-beta` scripts. This attempts to hybridize RC's earlier approach to build 
+# separate Spack installations, in our case for each HW config, with environments. One main objective is to have a push-button script that will build 
+# a SW stack soup-to-nuts, but generally speaking, attempts to do this are disappointing. Among other issues, it is difficult to wrangle compiler 
+# compilation and configuration.
+##################
+##################
+#
 # usage:
 # ./insttall.sh {arch} {npes} {spack_env}
 # TODO: for Intel compilers, we might actually need a more current GCC compiler. Ugh! So we could try a spack load, or maybe
