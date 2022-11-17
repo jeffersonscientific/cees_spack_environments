@@ -1,6 +1,10 @@
 # The SERC Spack environment
 
-*** NOTE: This has been significantly revised.
+**DEPRICATION NOTICE:**
+
+Scripts, environments, etc. in this repository should generally be considered depricated. This content is derived largely from `serc_spack_env` and is being more or less succeeded by `cees_spack_configs`. This repo may still reflect the `-beta` environmens for CEES/SERC, but should generally be views for informational purposes, not as production repso.
+
+**_NOTE:_** This has been significantly revised.
 In its current conception, the install script will build Spack environments based on template `spack.yaml` files. The process is less than perfect and generally appears to encounter some problems solving the complex SW environment. Presently, the strategy is to maintain 3 environments (zen1, skylake, and x86, representative of HW in CEES' SERC partition) with `-03` optpimization for each. Each of those environments attempts a build for  (gcc, intel, oneapi) x (MPIs). The MPI is a mess because:
 - `openmpi` does not compile for Intel (or OneAPI either -- ie, Intel's LLVM compilers?) without heroic efforts.
 - `intel-oneapi-mpi` builds for GCC, but very very poorly. Deceptively poorly.
